@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1115">
+<title>英语学习伴侣 · YouTube English Learner</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel2: #1e222c;
+  --border: #2a2f3a;
+  --text: #e8eaed;
+  --muted: #9aa0a6;
+  --accent: #4c8dff;
+  --accent2: #3d6fd6;
+  --green: #34a853;
+  --red: #ea4335;
+}
+
+html, body { height: 100%; }
+
+body {
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  overflow: hidden;
+}
+
+/* ---------- 顶栏 ---------- */
+header {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.logo { font-size: 16px; font-weight: 700; letter-spacing: .5px; }
+.logo small { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
+
+.url-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#urlInput {
+  flex: 1 1 360px; min-width: 200px;
+  padding: 9px 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--panel2); color: var(--text);
+  font-size: 13px;
+}
+#urlInput:focus { outline: none; border-color: var(--accent); }
+
+button {
+  padding: 8px 14px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel2); color: var(--text);
+  font-size: 13px; transition: filter .15s;
+}
+button:hover { filter: brightness(1.15); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.ghost { background: transparent; }
+
+.chk { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); cursor: pointer; user-select: none; }
+
+.status-row { display: flex; align-items: center; gap: 10px; min-height: 18px; color: var(--muted); font-size: 12.5px; }
+.status-row.error { color: #ff7b72; }
+#progressWrap { display: inline-flex; align-items: center; gap: 8px; }
+#progressWrap[hidden] { display: none; }
+.bar { display: inline-block; width: 140px; height: 6px; background: var(--panel2); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+/* ---------- 使用说明卡片 ---------- */
+#helpPanel {
+  border: 1px solid var(--border); border-radius: 8px; background: var(--panel2);
+  padding: 12px 14px; font-size: 12.5px; line-height: 1.75; color: var(--muted);
+}
+#helpPanel[hidden] { display: none; }
+#helpPanel ol { padding-left: 18px; }
+#helpPanel code {
+  display: inline-block; background: #0d1017; border: 1px solid var(--border);
+  padding: 1px 6px; border-radius: 4px; font-size: 11.5px; color: #c9d4ff; user-select: all;
+}
+#helpPanel .tip { color: var(--muted); margin-top: 6px; }
+
+/* ---------- 主区 ---------- */
+main {
+  flex: 1; min-height: 0;
+  display: flex;
+  padding: 12px 16px;
+}
+
+/* 左列：视频播放器 + 下方单词本 */
+#leftCol { display: flex; flex-direction: column; min-height: 0; width: 58%; min-width: 320px; }
+
+#playerPanel { display: flex; flex-direction: column; gap: 8px; height: 58%; min-height: 200px; flex: 0 0 auto; }
+#player { flex: 1 1 auto; min-height: 0; width: 100%; background: #000; border-radius: 8px; overflow: hidden; }
+#player iframe { width: 100%; height: 100%; border: 0; }
+#playerHint {
+  padding: 10px 12px; border-radius: 8px;
+  background: #2b1a17; border: 1px solid #5b2b22; color: #ffb3a7; font-size: 13px;
+  line-height: 1.6;
+}
+#playerHint[hidden] { display: none; }
+#playerHint a { color: var(--accent); }
+
+/* ---------- 可拖动分隔条 ---------- */
+#vDivider, #hDivider { flex: 0 0 auto; position: relative; }
+#vDivider { width: 10px; cursor: col-resize; }
+#hDivider { height: 10px; cursor: row-resize; }
+#vDivider::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 2px; border-radius: 1px; background: var(--border); transition: background .15s; }
+#hDivider::after { content: ''; position: absolute; left: 0; right: 0; top: 4px; height: 2px; border-radius: 1px; background: var(--border); transition: background .15s; }
+#vDivider:hover::after, #hDivider:hover::after, body.resizing #vDivider::after, body.resizing #hDivider::after { background: var(--accent); }
+body.resizing { user-select: none; cursor: col-resize; }
+
+/* ---------- 字幕面板 ---------- */
+#transcriptPanel {
+  display: flex; flex-direction: column; flex: 1; min-width: 300px; min-height: 0;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+}
+.toolbar {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.toolbar-count { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+#transcriptList { overflow-y: auto; flex: 1; padding: 8px 0; }
+.line {
+  padding: 9px 16px; cursor: pointer; border-left: 3px solid transparent;
+  transition: background .1s;
+}
+.line:hover { background: var(--panel2); }
+.line.active { background: rgba(76, 141, 255, .10); border-left-color: var(--accent); }
+
+.line .time { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-right: 8px; }
+.line .en { display: block; font-size: 14.5px; line-height: 1.55; }
+.line .cn { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.5; margin-top: 2px; }
+body.hide-cn .line .cn { display: none; }
+.line.active .en { color: #fff; }
+
+/* ---------- 单词本（位于视频播放器下方） ---------- */
+#wbPanel {
+  flex: 1 1 0; min-height: 150px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  display: flex; flex-direction: column;
+}
+#wbPanel[hidden] { display: none; }
+#leftCol:has(#wbPanel[hidden]) #playerPanel { flex: 1 1 auto; height: auto !important; }
+.drawer-head { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.drawer-head h3 { font-size: 14px; }
+.drawer-actions { display: flex; gap: 6px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+.drawer-actions input[type=text] { flex: 1; min-width: 110px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 12.5px; }
+.drawer-actions select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--text); font-size: 12.5px; }
+#wbClose { font-size: 15px; line-height: 1; padding: 4px 9px; }
+
+#wbList { overflow-y: auto; flex: 1; padding: 8px 0; }
+.wb-item { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: flex-start; }
+.wb-main { flex: 1; min-width: 0; }
+.wb-word { font-weight: 700; font-size: 14.5px; }
+.wb-phon { color: var(--muted); font-size: 12px; margin-left: 6px; }
+.wb-cn { color: var(--accent); font-size: 13px; margin-top: 2px; }
+.wb-def { color: var(--muted); font-size: 12px; margin-top: 3px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.wb-del { background: transparent; color: var(--red); border-color: transparent; padding: 4px 8px; font-size: 12px; }
+.wb-empty { color: var(--muted); text-align: center; padding: 30px 12px; font-size: 13px; }
+
+/* ---------- 查词弹窗 ---------- */
+#lookupPopup {
+  position: fixed; z-index: 100; width: 340px; max-width: 90vw;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  padding: 14px 16px; font-size: 13px;
+}
+#lookupPopup[hidden] { display: none; }
+.lp-word { font-size: 17px; font-weight: 700; }
+.lp-phon { color: var(--muted); margin-left: 8px; font-size: 13px; }
+.lp-cn { color: var(--accent); margin-top: 6px; font-size: 13.5px; line-height: 1.5; }
+.lp-defs { margin-top: 8px; max-height: 120px; overflow-y: auto; }
+.lp-def { color: var(--muted); margin-top: 5px; line-height: 1.45; }
+.lp-def .pos { display: inline-block; color: var(--green); margin-right: 5px; font-weight: 600; }
+.lp-actions { display: flex; gap: 8px; margin-top: 12px; }
+.lp-actions button { flex: 1; padding: 10px 0; }
+#lookupPopup .lp-loading { color: var(--muted); }
+.lp-added { color: var(--green); margin-top: 8px; font-size: 12.5px; }
+
+/* ---------- 底部 ---------- */
+footer { padding: 8px 16px; color: var(--muted); font-size: 11.5px; border-top: 1px solid var(--border); background: var(--panel); }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* ---------- 手机竖屏适配 ---------- */
+@media (max-width: 860px) {
+  body { overflow: hidden; }
+  header { padding: 10px 12px; }
+  .logo { font-size: 14px; }
+  #urlInput { flex: 1 1 100%; }
+  main {
+    flex-direction: column; padding: 8px 10px;
+  }
+  /* 左列拆开为三个纵向块：播放器 → 字幕 → 单词本 */
+  #leftCol { display: contents; width: auto; min-width: 0; }
+  #playerPanel { order: 1; height: auto; min-height: 0; width: 100%; }
+  #player { flex: 0 0 auto; aspect-ratio: 16 / 9; height: auto; }
+  #transcriptPanel { order: 2; flex: 1 1 40vh; min-width: 0; min-height: 30vh; }
+  #wbPanel { order: 3; flex: 0 0 auto; max-height: 28vh; min-height: 120px; width: 100%; }
+  #vDivider, #hDivider { display: none; }
+  #playerHint { font-size: 12px; }
+  .line .en { font-size: 15px; }
+  .line .cn { font-size: 13px; }
+  #lookupPopup { font-size: 13.5px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">英语学习伴侣 <small>YouTube English Learner</small></div>
+  <div class="url-row">
+    <input id="urlInput" type="text" spellcheck="false"
+      placeholder="粘贴 YouTube 视频链接，例如 https://www.youtube.com/watch?v=xxxxxxxxxxx">
+    <button id="loadBtn" class="primary">加载视频</button>
+    <label class="chk"><input type="checkbox" id="cnToggle" checked> 显示中文</label>
+    <button id="importBtn" class="ghost" title="上传字幕文件（.srt/.vtt/.txt）">导入字幕</button>
+    <input type="file" id="srtFile" accept=".srt,.vtt,.txt" hidden>
+    <button id="wbBtn" class="ghost" title="显示/隐藏单词本">单词本 <span id="wbCount">0</span></button>
+    <button id="helpBtn" class="ghost" title="使用说明">如何使用</button>
+  </div>
+  <div class="status-row">
+    <span id="status"></span>
+    <span id="progressWrap" hidden>
+      <span id="progressText"></span>
+      <span class="bar"><i id="progressBar"></i></span>
+    </span>
+  </div>
+  <div id="helpPanel" hidden>
+    <ol>
+      <li>粘贴 YouTube 视频链接，点「<b>加载视频</b>」开始播放（手机可全屏）。</li>
+      <li>获取字幕：电脑上装 <code>yt-dlp</code> 后运行
+        <code>yt-dlp --write-auto-sub --sub-lang en --skip-download -o "%(id)s" 视频链接</code>，
+        或在在线字幕站（如 downsub 等）下载 .srt 文件。</li>
+      <li>点「<b>导入字幕</b>」上传字幕文件，页面自动逐句翻译并同步播放进度。</li>
+      <li>长按（手机）/ 拖动选中（电脑）字幕里的单词即可查词，「加入单词本」收藏。</li>
+      <li>单词本可导出（TXT/CSV/JSON）；换设备时先导出 JSON，再用「导入」合并。</li>
+    </ol>
+    <div class="tip">提示：纯网页版受浏览器安全限制，无法自动抓取 YouTube 字幕，必须导入字幕文件；视频播放、翻译、查词均在线直连。</div>
+  </div>
+</header>
+
+<main>
+  <section id="leftCol">
+    <section id="playerPanel">
+      <div id="player"></div>
+      <div id="playerHint" hidden></div>
+    </section>
+    <div id="hDivider" title="拖动调节播放器 / 单词本高度"></div>
+    <aside id="wbPanel">
+      <div class="drawer-head">
+        <h3>单词本 <span id="wbCount2">0</span></h3>
+        <div class="drawer-actions">
+          <input id="wbSearch" type="text" placeholder="搜索单词...">
+          <select id="exportFmt">
+            <option value="txt">TXT</option>
+            <option value="csv">CSV</option>
+            <option value="json">JSON</option>
+          </select>
+          <button id="exportBtn">导出</button>
+          <button id="importWbBtn" title="合并导入 JSON 词库">导入</button>
+          <input type="file" id="wbFile" accept=".json" hidden>
+          <button id="clearBtn" class="ghost">清空</button>
+          <button id="wbClose" title="收起/展开">×</button>
+        </div>
+      </div>
+      <div id="wbList"></div>
+    </aside>
+  </section>
+
+  <div id="vDivider" title="拖动调节左右宽度"></div>
+
+  <section id="transcriptPanel">
+    <div class="toolbar">
+      <button id="prevBtn" class="ghost" title="上一句">上一句</button>
+      <button id="curBtn" class="ghost" title="从当前句开头重新播放">当前句</button>
+      <button id="nextBtn" class="ghost" title="下一句">下一句</button>
+      <label class="chk"><input type="checkbox" id="loopToggle"> 循环当前句</label>
+      <span class="toolbar-count" id="lineCount"></span>
+    </div>
+    <div id="transcriptList"></div>
+  </section>
+</main>
+
+<footer>纯网页版 · 免安装 · 支持手机/电脑浏览器 · 数据保存在当前浏览器</footer>
+
+<div id="lookupPopup" hidden></div>
+
+<script>
+'use strict';
+
+/* ============================================================
+ * 英语学习伴侣 · 公共网页版（纯浏览器，免安装，免服务器）
+ * 说明：
+ *   - 播放器：YouTube IFrame API（手机/电脑均可，可全屏）
+ *   - 字幕：浏览器跨域限制无法自动抓取 → 导入 .srt/.vtt/.txt
+ *   - 翻译：Google 翻译网页接口 + MyMemory 兜底
+ *   - 查词：Datamuse 英文释义 + Google 翻译中文释义
+ * ============================================================ */
+
+/* ---------------- API 层（纯浏览器直连） ---------------- */
+const TR_CACHE_KEY = 'el_tr_cache_v1';
+const LK_CACHE_KEY = 'el_lk_cache_v1';
+
+function loadMap(key) {
+  try { return JSON.parse(localStorage.getItem(key)) || {}; } catch { return {}; }
+}
+function saveMap(key, map) {
+  try { localStorage.setItem(key, JSON.stringify(map)); } catch {}
+}
+
+async function gtxTranslate(text) {
+  const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=zh-CN&dt=t&q=' +
+    encodeURIComponent(text);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('谷歌 HTTP ' + resp.status);
+  const j = await resp.json();
+  const parts = Array.isArray(j && j[0]) ? j[0].filter(Boolean).map(x => x[0]).join('') : null;
+  if (!parts) throw new Error('谷歌翻译为空');
+  return parts;
+}
+
+async function myMemoryTranslate(text) {
+  const resp = await fetch('https://api.mymemory.translated.net/get?q=' +
+    encodeURIComponent(text) + '&langpair=en|zh-CN');
+  const j = await resp.json();
+  const t = j && j.responseData && j.responseData.translatedText;
+  if (!t) throw new Error('MyMemory 翻译为空');
+  return t;
+}
+
+async function translateOne(text) {
+  if (!text || !String(text).trim()) return '';
+  const key = 't_' + text.toLowerCase();
+  const cache = loadMap(TR_CACHE_KEY);
+  if (cache[key]) return cache[key];
+  let out = null;
+  const errs = [];
+  try { out = await gtxTranslate(text); } catch (e) { errs.push('谷歌:' + e.message); }
+  if (!out) {
+    try { out = await myMemoryTranslate(text); } catch (e) { errs.push('MyMemory:' + e.message); }
+  }
+  if (out == null) throw new Error(errs.join('；'));
+  cache[key] = out;
+  saveMap(TR_CACHE_KEY, cache);
+  return out;
+}
+
+async function translateBatch(texts, concurrency = 3) {
+  const results = new Array(texts.length).fill('');
+  let idx = 0;
+  const worker = async () => {
+    while (idx < texts.length) {
+      const i = idx++;
+      try { results[i] = await translateOne(texts[i]); } catch { results[i] = ''; }
+      await new Promise(r => setTimeout(r, 60 + Math.random() * 120));
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, texts.length) }, worker));
+  return results;
+}
+
+const API = {
+  async fetchTranscript() {
+    throw new Error('公共网页版无法自动抓取 YouTube 字幕（浏览器跨域限制）。请按「如何使用」指引下载字幕文件后导入。');
+  },
+  translateBatch,
+  async lookup(word) {
+    const cacheKey = 'lk_' + word.toLowerCase();
+    const cache = loadMap(LK_CACHE_KEY);
+    if (cache[cacheKey]) return cache[cacheKey];
+    const result = { word, phonetic: '', defs: [], cn: '' };
+    try {
+      const resp = await fetch('https://api.datamuse.com/words?sp=' + encodeURIComponent(word) + '&md=d&max=4');
+      const j = await resp.json();
+      const e = Array.isArray(j) && j.find(x => (x.word || '').toLowerCase() === word.toLowerCase());
+      if (e && Array.isArray(e.defs)) {
+        result.defs = e.defs.slice(0, 5).map(d => {
+          const i = String(d).indexOf('\t');
+          return i > -1 ? { pos: String(d).slice(0, i), def: String(d).slice(i + 1) } : { pos: '', def: String(d) };
+        });
+      }
+    } catch {}
+    try { result.cn = await translateOne(word); } catch {}
+    cache[cacheKey] = result;
+    saveMap(LK_CACHE_KEY, cache);
+    return result;
+  },
+};
+
+/* ---------------- 工具 ---------------- */
+const $ = s => document.querySelector(s);
+
+function extractVideoId(input) {
+  if (!input) return null;
+  const s = String(input).trim();
+  if (/^[\w-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/);
+  return m ? m[1] : null;
+}
+
+function fmtTime(t) {
+  t = Math.max(0, Math.floor(t || 0));
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60;
+  return (h ? String(h).padStart(2, '0') + ':' : '') + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function setStatus(msg, isError) {
+  const el = $('#status');
+  el.textContent = msg || '';
+  el.parentElement.classList.toggle('error', !!isError);
+}
+
+function setProgress(cur, total, label) {
+  const wrap = $('#progressWrap');
+  if (total == null) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  const pct = total ? Math.round(cur / total * 100) : 100;
+  $('#progressBar').style.width = pct + '%';
+  $('#progressText').textContent = label || (pct + '%');
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ---------------- 状态 ---------------- */
+const state = {
+  videoId: null,
+  lines: [],
+  lineEls: [],
+  curIdx: -1,
+  loop: false,
+};
+
+let player = null;
+let playerReady = false;
+
+/* ---------------- 播放器 ---------------- */
+function loadYTApi() {
+  if (window.YT && YT.Player) return;
+  if (document.getElementById('yt-api')) return;
+  const s = document.createElement('script');
+  s.id = 'yt-api';
+  s.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(s);
+}
+
+window.onYouTubeIframeAPIReady = () => {
+  if (state.videoId) createPlayer(state.videoId);
+};
+
+function createPlayer(videoId) {
+  if (!window.YT || !YT.Player) return;
+  playerReady = false;
+  $('#playerHint').hidden = true;
+  if (player && player.destroy) { try { player.destroy(); } catch {} }
+  player = new YT.Player('player', {
+    videoId,
+    playerVars: { rel: 0, playsinline: 1, iv_load_policy: 3 },
+    events: {
+      onReady: () => { playerReady = true; },
+      onStateChange: () => {},
+      onError: onPlayerError,
+    },
+  });
+}
+
+function onPlayerError(e) {
+  const hint = $('#playerHint');
+  hint.hidden = false;
+  if (e.data === 2 || e.data === 100 || e.data === 101 || e.data === 150) {
+    hint.innerHTML =
+      '该视频无法在此页面播放（可能被作者禁止嵌入，或需要登录/地区限制）。' +
+      '可点击 <a href="https://www.youtube.com/watch?v=' + state.videoId + '" target="_blank">在 YouTube 中打开观看</a>，' +
+      '字幕面板功能不受影响。';
+  } else {
+    hint.textContent = '视频播放出错（错误码 ' + e.data + '）。可尝试刷新页面重试。';
+  }
+}
+
+/* ---------------- 加载流程 ---------------- */
+async function loadVideo() {
+  const url = $('#urlInput').value.trim();
+  const vid = extractVideoId(url);
+  if (!vid) { setStatus('无法识别的视频链接，请检查后重试', true); return; }
+
+  state.videoId = vid;
+  state.lines = [];
+  state.curIdx = -1;
+  $('#transcriptList').innerHTML = '';
+  $('#lineCount').textContent = '';
+  $('#playerHint').hidden = true;
+  loadYTApi();
+  createPlayer(vid);
+
+  setStatus('视频已加载。请下载字幕文件后点击「导入字幕」（详见「如何使用」）');
+}
+
+async function translateAll() {
+  const lines = state.lines;
+  const chunk = 30;
+  let done = 0;
+  for (let i = 0; i < lines.length; i += chunk) {
+    const batch = lines.slice(i, i + chunk);
+    const texts = batch.map(l => l.text);
+    let results = [];
+    try {
+      const j = await API.translateBatch(texts);
+      results = j && Array.isArray(j) ? j : [];
+    } catch { results = []; }
+    batch.forEach((l, k) => {
+      if (results[k] != null && results[k] !== '') l.cn = results[k];
+    });
+    done += batch.length;
+    setProgress(done, lines.length, '翻译中 ' + done + '/' + lines.length);
+    updateCnVisible(done - batch.length, done);
+  }
+  setProgress(null);
+}
+
+/* ---------------- 字幕渲染 ---------------- */
+function renderTranscript() {
+  const list = $('#transcriptList');
+  list.innerHTML = '';
+  state.lineEls = state.lines.map((l, i) => {
+    const div = document.createElement('div');
+    div.className = 'line';
+    div.dataset.i = i;
+    div.innerHTML =
+      '<span class="time">' + fmtTime(l.start) + '</span>' +
+      '<span class="en"></span>' +
+      '<span class="cn"></span>';
+    div.querySelector('.en').textContent = l.text;
+    div.querySelector('.cn').textContent = l.cn;
+    div.addEventListener('click', () => seekToLine(i));
+    list.appendChild(div);
+    return div;
+  });
+  $('#lineCount').textContent = state.lines.length + ' 句';
+  updateCnVisible(0, 0);
+}
+
+function updateCnVisible(from, to) {
+  const show = $('#cnToggle').checked;
+  document.body.classList.toggle('hide-cn', !show);
+  for (let i = Math.max(0, from - 10); i < Math.min(to + 10, state.lineEls.length); i++) {
+    const cnEl = state.lineEls[i] && state.lineEls[i].querySelector('.cn');
+    if (cnEl) cnEl.textContent = state.lines[i].cn;
+  }
+}
+
+/* ---------------- 播放同步 ---------------- */
+function seekToLine(i) {
+  if (!player || !playerReady || !state.lines[i]) return;
+  player.seekTo(state.lines[i].start, true);
+  player.playVideo();
+  setActive(i);
+}
+
+function setActive(i) {
+  const els = state.lineEls;
+  if (state.curIdx >= 0 && state.curIdx < els.length) els[state.curIdx].classList.remove('active');
+  state.curIdx = i;
+  if (i >= 0 && i < els.length) {
+    els[i].classList.add('active');
+    els[i].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+setInterval(() => {
+  if (!player || !playerReady || !state.lines.length) return;
+  let t;
+  try { t = player.getCurrentTime(); } catch { return; }
+  if (t == null) return;
+
+  const lines = state.lines;
+  let idx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (t >= l.start && (t < l.start + Math.max(l.duration, 0.5))) { idx = i; break; }
+    const next = lines[i + 1];
+    if (next && t < next.start && t >= l.start) { idx = i; break; }
+  }
+
+  if (state.loop && state.curIdx >= 0) {
+    const l = lines[state.curIdx];
+    if (t > l.start + Math.max(l.duration, 0.5)) player.seekTo(l.start, true);
+  }
+
+  if (idx !== state.curIdx) setActive(idx);
+}, 200);
+
+/* ---------------- 上一句 / 下一句 / 循环 ---------------- */
+$('#prevBtn').addEventListener('click', () => {
+  const i = state.curIdx > 0 ? state.curIdx - 1 : 0;
+  if (state.lines[i]) seekToLine(i);
+});
+$('#nextBtn').addEventListener('click', () => {
+  const i = state.curIdx >= 0 ? state.curIdx + 1 : 0;
+  if (state.lines[i]) seekToLine(i);
+});
+$('#curBtn').addEventListener('click', () => {
+  if (state.curIdx >= 0) seekToLine(state.curIdx);
+});
+$('#loopToggle').addEventListener('change', e => { state.loop = e.target.checked; });
+$('#cnToggle').addEventListener('change', e => {
+  document.body.classList.toggle('hide-cn', !e.target.checked);
+});
+
+/* ---------------- 选词查词（鼠标/触摸长按选词统一走 selectionchange） ---------------- */
+const popup = $('#lookupPopup');
+let popupWord = '';
+let lastSelT = 0;
+
+document.addEventListener('selectionchange', () => {
+  setTimeout(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const anchor = sel.anchorNode;
+    if (!anchor || !anchor.parentElement || !anchor.parentElement.closest('#transcriptList')) return;
+    const text = sel.toString().trim();
+    if (!text || text.length > 120) return;
+    if (Date.now() - lastSelT < 250) return; // 防抖
+    lastSelT = Date.now();
+    let x = 0, y = 0;
+    try {
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      x = r.left + r.width / 2;
+      y = Math.max(r.bottom, r.top) + 6;
+    } catch { x = window.innerWidth / 2; y = window.innerHeight / 2; }
+    showLookup(text, x, y);
+  }, 20);
+});
+
+function showLookup(text, x, y) {
+  const single = /^[A-Za-z][A-Za-z'’-]*$/.test(text);
+  popupWord = single ? text : text;
+  popup.innerHTML = '<div class="lp-loading">正在查询 "' + text + '" ...</div>';
+  popup.hidden = false;
+  popup.style.left = '0px'; popup.style.top = '0px';
+  const w = popup.offsetWidth, h = popup.offsetHeight;
+  popup.style.left = Math.max(4, Math.min(x, window.innerWidth - w - 4)) + 'px';
+  popup.style.top = Math.max(4, Math.min(y + 12, window.innerHeight - h - 4)) + 'px';
+
+  if (single) lookupSingle(text);
+  else lookupPhrase(text);
+}
+
+async function lookupSingle(word) {
+  try {
+    const j = await API.lookup(word);
+    popupWord = word;
+    popup.innerHTML = renderLookupHtml(j);
+  } catch (e) {
+    popup.innerHTML = '<div class="lp-cn">查询失败：' + esc(e.message) + '</div>';
+  }
+}
+
+async function lookupPhrase(phrase) {
+  try {
+    const results = await API.translateBatch([phrase]);
+    const cn = results && results[0] ? results[0] : '';
+    popupWord = phrase;
+    popup.innerHTML = renderLookupHtml({ word: phrase, phonetic: '', defs: [], cn, phrase: true });
+  } catch (e) {
+    popup.innerHTML = '<div class="lp-cn">查询失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderLookupHtml(j) {
+  const defsHtml = (j.defs || []).map(d =>
+    '<div class="lp-def"><span class="pos">' + esc(d.pos) + '</span>' + esc(d.def) + '</div>').join('');
+  return (
+    '<div><span class="lp-word">' + esc(j.word) + '</span>' +
+    (j.phonetic ? '<span class="lp-phon">/' + esc(j.phonetic) + '/</span>' : '') +
+    (j.phrase ? '<span class="lp-phon">(短语)</span>' : '') +
+    '</div>' +
+    (j.cn ? '<div class="lp-cn">' + esc(j.cn) + '</div>' : '') +
+    (defsHtml ? '<div class="lp-defs">' + defsHtml + '</div>' : '') +
+    '<div class="lp-actions"><button id="lpAdd">加入单词本</button><button class="ghost" id="lpClose">关闭</button></div>'
+  );
+}
+
+popup.addEventListener('click', e => {
+  const id = e.target.id;
+  if (id === 'lpAdd') {
+    addToWordbook(popupWord).then(ok => {
+      const b = popup.querySelector('#lpAdd');
+      if (b) b.textContent = ok ? '已添加' : '已存在';
+      if (b) b.disabled = true;
+    });
+  } else if (id === 'lpClose') {
+    popup.hidden = true;
+  }
+});
+
+document.addEventListener('pointerdown', e => {
+  if (!popup.hidden && !popup.contains(e.target) && e.target.closest('#transcriptList') == null) {
+    popup.hidden = true;
+  }
+});
+
+/* ---------------- 单词本 ---------------- */
+const WB_KEY = 'el_wordbook_v1';
+let wordbook = loadWordbook();
+
+function loadWordbook() {
+  try { return JSON.parse(localStorage.getItem(WB_KEY)) || []; } catch { return []; }
+}
+function saveWordbook() {
+  localStorage.setItem(WB_KEY, JSON.stringify(wordbook));
+  renderWordbook();
+  $('#wbCount').textContent = wordbook.length;
+}
+
+async function addToWordbook(word) {
+  const w = String(word).trim();
+  if (!w) return false;
+  const low = w.toLowerCase();
+  if (wordbook.some(x => x.word.toLowerCase() === low)) return false;
+  let j = { word: w, phonetic: '', defs: [], cn: '', phrase: !/^[A-Za-z][A-Za-z'’-]*$/.test(w) };
+  if (!j.phrase) {
+    try { j = await API.lookup(w); } catch {}
+  } else {
+    try {
+      const r = await API.translateBatch([w]);
+      j.cn = (r && r[0]) || '';
+    } catch {}
+  }
+  j.ts = Date.now();
+  wordbook.push(j);
+  saveWordbook();
+  return true;
+}
+
+function renderWordbook() {
+  const list = $('#wbList');
+  const q = $('#wbSearch').value.trim().toLowerCase();
+  const items = wordbook
+    .filter(x => !q || x.word.toLowerCase().includes(q))
+    .sort((a, b) => b.ts - a.ts);
+  $('#wbCount2').textContent = wordbook.length;
+  if (!items.length) {
+    list.innerHTML = '<div class="wb-empty">' + (wordbook.length ? '没有匹配的单词' : '还没有单词，选中字幕中的单词即可加入') + '</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const x of items) {
+    const div = document.createElement('div');
+    div.className = 'wb-item';
+    const defTxt = (x.defs || []).map(d => (d.pos ? d.pos + '. ' : '') + d.def).join(' | ');
+    div.innerHTML =
+      '<div class="wb-main">' +
+      '<div><span class="wb-word">' + esc(x.word) + '</span>' +
+      (x.phonetic ? '<span class="wb-phon">/' + esc(x.phonetic) + '/</span>' : '') +
+      (x.phrase ? '<span class="wb-phon">(短语)</span>' : '') +
+      '</div>' +
+      (x.cn ? '<div class="wb-cn">' + esc(x.cn) + '</div>' : '') +
+      (defTxt ? '<div class="wb-def">' + esc(defTxt) + '</div>' : '') +
+      '</div>' +
+      '<button class="wb-del" title="删除">删除</button>';
+    div.querySelector('.wb-del').addEventListener('click', () => {
+      wordbook = wordbook.filter(y => y.word.toLowerCase() !== x.word.toLowerCase());
+      saveWordbook();
+    });
+    list.appendChild(div);
+  }
+}
+
+$('#wbSearch').addEventListener('input', renderWordbook);
+
+/* ---------------- 导出 / 导入（换设备同步） ---------------- */
+$('#exportBtn').addEventListener('click', () => {
+  const fmt = $('#exportFmt').value;
+  let content = '', mime = 'text/plain', ext = 'txt';
+  if (fmt === 'txt') {
+    content = wordbook.map(x => x.word + (x.cn ? '  ' + x.cn : '')).join('\r\n');
+  } else if (fmt === 'csv') {
+    mime = 'text/csv'; ext = 'csv';
+    const escCsv = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+    content = '\uFEFF' + ['word', 'phonetic', 'chinese', 'definition', 'added_at'].map(escCsv).join(',') + '\r\n' +
+      wordbook.map(x => [x.word, x.phonetic, x.cn, (x.defs || []).map(d => (d.pos || '') + ' ' + d.def).join(' | '), new Date(x.ts).toLocaleString()]
+        .map(escCsv).join(',')).join('\r\n');
+  } else {
+    mime = 'application/json'; ext = 'json';
+    content = JSON.stringify(wordbook, null, 2);
+  }
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'wordbook_' + new Date().toISOString().slice(0, 10) + '.' + ext;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('已导出 ' + wordbook.length + ' 个单词（.' + ext + '）');
+});
+
+$('#importWbBtn').addEventListener('click', () => $('#wbFile').click());
+$('#wbFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const arr = JSON.parse(await file.text());
+    if (!Array.isArray(arr)) throw new Error('格式不正确');
+    const existed = wordbook.length;
+    for (const x of arr) {
+      if (!x || !x.word) continue;
+      if (wordbook.some(y => y.word.toLowerCase() === String(x.word).toLowerCase())) continue;
+      wordbook.push({
+        word: String(x.word),
+        phonetic: x.phonetic || '',
+        defs: Array.isArray(x.defs) ? x.defs : [],
+        cn: x.cn || '',
+        phrase: !!x.phrase,
+        ts: x.ts || Date.now(),
+      });
+    }
+    saveWordbook();
+    setStatus('已合并导入 ' + (wordbook.length - existed) + ' 个单词（原有 ' + existed + ' 个）');
+  } catch (err) {
+    setStatus('导入失败：' + err.message, true);
+  }
+});
+
+$('#clearBtn').addEventListener('click', () => {
+  if (!wordbook.length) return;
+  if (confirm('确定清空全部 ' + wordbook.length + ' 个单词吗？')) {
+    wordbook = [];
+    saveWordbook();
+  }
+});
+
+/* ---------------- 单词本 / 使用说明 开关 ---------------- */
+$('#wbBtn').addEventListener('click', () => {
+  $('#wbPanel').hidden = !$('#wbPanel').hidden;
+  renderWordbook();
+});
+$('#wbClose').addEventListener('click', () => { $('#wbPanel').hidden = true; });
+$('#helpBtn').addEventListener('click', () => {
+  $('#helpPanel').hidden = !$('#helpPanel').hidden;
+});
+
+/* ---------------- 导入字幕文件 ---------------- */
+$('#importBtn').addEventListener('click', () => $('#srtFile').click());
+$('#srtFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const text = await file.text();
+  const lines = parseSubtitle(text);
+  if (!lines.length) { setStatus('无法解析字幕文件（支持 .srt/.vtt/纯文本时间轴）', true); return; }
+  state.lines = lines;
+  state.curIdx = -1;
+  renderTranscript();
+  setStatus('已导入 ' + lines.length + ' 句字幕，正在逐句翻译...');
+  await translateAll();
+  setStatus('字幕与翻译就绪，点任意句可跳转播放');
+});
+
+function parseSubtitle(text) {
+  const lines = [];
+  const blocks = String(text).replace(/\r/g, '').split(/\n\s*\n/);
+  const re = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{3})/;
+  for (const b of blocks) {
+    const m = b.match(re);
+    if (!m) continue;
+    const toSec = (h, mi, s) => Number(h) * 3600 + Number(mi) * 60 + Number(s);
+    const start = toSec(m[1], m[2], m[3]);
+    const end = toSec(m[5], m[6], m[7]);
+    const body = b.split(/\n/).slice(1).filter(l => l.trim() && !/^\d+$/.test(l.trim()) && !/-->\s*\d/.test(l)).join(' ').trim();
+    if (body) lines.push({ start, duration: Math.max(end - start, 0.5), text: body, cn: '' });
+  }
+  if (!lines.length) {
+    const re2 = /(?:\[)?(\d{1,2}):(\d{2})(?:\])?\s+(.*)/;
+    for (const b of String(text).replace(/\r/g, '').split(/\n/)) {
+      const m = b.match(re2);
+      if (m) lines.push({ start: Number(m[1]) * 60 + Number(m[2]), duration: 3, text: m[3].trim(), cn: '' });
+    }
+  }
+  return lines;
+}
+
+/* ---------------- 可拖动分栏（桌面） ---------------- */
+const LAYOUT_KEY = 'el_layout_v1';
+let layout = { left: 58, player: 58 };
+try { Object.assign(layout, JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}); } catch {}
+
+function applyLayout() {
+  const left = $('#leftCol'), pp = $('#playerPanel');
+  if (left) left.style.width = layout.left + '%';
+  if (pp) pp.style.height = layout.player + '%';
+}
+function saveLayout() {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch {}
+}
+
+function makeSplitter(divider, target, container, vertical, minPct, maxPct) {
+  let dragging = false, startPos = 0, startSize = 0;
+  const axis = vertical ? 'clientX' : 'clientY';
+  const key = vertical ? 'left' : 'player';
+  divider.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragging = true;
+    startPos = e[axis];
+    startSize = vertical ? target.offsetWidth : target.offsetHeight;
+    document.body.classList.add('resizing');
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const cSize = vertical ? container.clientWidth : container.clientHeight;
+    if (!cSize) return;
+    let pct = (startSize + (e[axis] - startPos)) / cSize * 100;
+    pct = Math.max(minPct, Math.min(maxPct, pct));
+    if (vertical) target.style.width = pct + '%';
+    else target.style.height = pct + '%';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.classList.remove('resizing');
+    const v = vertical ? parseFloat(target.style.width) : parseFloat(target.style.height);
+    if (!isNaN(v)) layout[key] = v;
+    saveLayout();
+  });
+}
+
+if (window.innerWidth > 860) {
+  applyLayout();
+  makeSplitter($('#vDivider'), $('#leftCol'), document.querySelector('main'), true, 30, 80);
+  makeSplitter($('#hDivider'), $('#playerPanel'), $('#leftCol'), false, 25, 85);
+}
+
+/* ---------------- 初始化 ---------------- */
+$('#loadBtn').addEventListener('click', loadVideo);
+$('#urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') loadVideo(); });
+loadYTApi();
+saveWordbook();
+</script>
+</body>
+</html>
